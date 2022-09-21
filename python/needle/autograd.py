@@ -257,6 +257,8 @@ class Tensor(Value):
         tensor = Tensor.__new__(Tensor)
         tensor._init(op, inputs)
         if not LAZY_MODE:
+            if not tensor.requires_grad:
+                return tensor.detach()
             tensor.realize_cached_data()
         return tensor
 
@@ -307,7 +309,7 @@ class Tensor(Value):
         return data.device
 
     def backward(self, out_grad=None):
-        out_grad = out_grad if out_grad else Tensor(numpy.ones(self.shape))
+        out_grad = out_grad if out_grad else Tensor(numpy.ones(self.shape, dtype="float32"))
         compute_gradient_of_variables(self, out_grad)
 
     def __repr__(self):
