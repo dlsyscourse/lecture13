@@ -106,6 +106,13 @@ class TensorOp(Op):
         return Tensor.make_from_op(self, args)
 
 
+class TensorTupleOp(Op):
+    """Op class specialized to output TensorTuple"""
+
+    def __call__(self, *args):
+        return TensorTuple.make_from_op(self, args)
+
+
 class Value:
     """A value in the computational graph."""
 
@@ -378,6 +385,7 @@ class Tensor(Value):
     __rmul__ = __mul__
     __rsub__ = __sub__
     __rmatmul__ = __matmul__
+
 
 
 def compute_gradient_of_variables(output_tensor, out_grad):
