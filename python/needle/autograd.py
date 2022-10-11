@@ -10,39 +10,11 @@ TENSOR_COUNTER = 0
 
 # NOTE: we will numpy as the array_api
 # to backup our computations, this line will change in later homeworks
-import numpy as array_api
+from . import backend_ndarray as array_api
+from .backend_ndarray import all_devices, cuda, cpu, cpu_numpy, BackendDevice as Device
 
-NDArray = numpy.ndarray
+NDArray = array_api.NDArray
 
-
-class Device:
-    """Indicates the device supporting an NDArray."""
-
-
-class CPUDevice(Device):
-    """Represents data that sits in CPU"""
-
-    def __repr__(self):
-        return "needle.cpu()"
-
-    def __hash__(self):
-        return self.__repr__().__hash__()
-
-    def __eq__(self, other):
-        return isinstance(other, CPUDevice)
-
-    def enabled(self):
-        return True
-
-
-def cpu():
-    """Return cpu device"""
-    return CPUDevice()
-
-
-def all_devices():
-    """return a list of all available devices"""
-    return [cpu()]
 
 
 class Op:
@@ -215,7 +187,7 @@ class TensorTuple(Value):
 
     def detach(self):
         """Create a new tensor that shares the data but detaches from the graph."""
-        return Tuple.make_const(self.realize_cached_data())
+        return TensorTuple.make_const(self.realize_cached_data())
 
 
 class Tensor(Value):
@@ -316,7 +288,7 @@ class Tensor(Value):
         return data.device
 
     def backward(self, out_grad=None):
-        out_grad = out_grad if out_grad else Tensor(numpy.ones(self.shape, dtype="float32"))
+        out_grad = out_grad if out_grad else needle.ops.full(self.shape, 1, dtype="float32", device=self.device)
         compute_gradient_of_variables(self, out_grad)
 
     def __repr__(self):
@@ -387,7 +359,6 @@ class Tensor(Value):
     __rmatmul__ = __matmul__
 
 
-
 def compute_gradient_of_variables(output_tensor, out_grad):
     """Take gradient of output node with respect to each node in node_list.
 
@@ -437,5 +408,4 @@ def sum_node_list(node_list):
     """Custom sum function in order to avoid create redundant nodes in Python sum implementation."""
     from operator import add
     from functools import reduce
-
     return reduce(add, node_list)

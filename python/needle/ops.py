@@ -1,16 +1,15 @@
-"""Operator and gradient implementations."""
+"""Operatpr table."""
+# Global operator table.
 from numbers import Number
 from typing import Optional, List
 from .autograd import NDArray
 from .autograd import Op, Tensor, Value, TensorOp
-
 from .autograd import TensorTuple, TensorTupleOp
-
 import numpy
 
 # NOTE: we will numpy as the array_api
 # to backup our computations, this line will change in later homeworks
-import numpy as array_api
+from . import backend_ndarray as array_api
 
 
 class MakeTensorTuple(TensorTupleOp):
@@ -227,7 +226,7 @@ class BroadcastTo(TensorOp):
         self.shape = shape
 
     def compute(self, a):
-        return array_api.broadcast_to(a, self.shape)
+        return a.broadcast_to(self.shape)
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
@@ -308,7 +307,9 @@ def log(a):
 
 class Exp(TensorOp):
     def compute(self, a):
-        return array_api.exp(a)
+        ### BEGIN YOUR SOLUTION
+        raise NotImplementedError()
+        ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
@@ -365,16 +366,16 @@ def full(
         arr = array_api.full(shape, fill_value, dtype=dtype, **kwargs)
     else:
         if rand["dist"] == "normal":
-            arr = array_api.randn(
-                shape, dtype, mean=rand["mean"], std=rand["std"], **kwargs
+            arr = numpy.randn(
+                shape, dtype, mean=rand["mean"], std=rand["std"],
             )
         if rand["dist"] == "binomial":
-            arr = array_api.randb(
-                shape, dtype, ntrials=rand["trials"], p=rand["prob"], **kwargs
+            arr = numpy.randb(
+                shape, dtype, ntrials=rand["trials"], p=rand["prob"],
             )
         if rand["dist"] == "uniform":
-            arr = array_api.randu(
-                shape, dtype, low=rand["low"], high=rand["high"], **kwargs
+            arr = numpy.randu(
+                shape, dtype, low=rand["low"], high=rand["high"],
             )
 
     return Tensor.make_const(arr, requires_grad=requires_grad)
