@@ -1,14 +1,11 @@
-from .autograd import Tensor, cpu, all_devices, cuda
 from . import ops
 from .ops import *
+from .autograd import Tensor, cpu, all_devices
 
+from . import init
+from .init import ones, zeros, zeros_like, ones_like
 
-# from . import nd_backend
-
-# from .nd_backend import cuda, cpu
-# from .numpy_backend import numpy_device
-
-# from . import nn
-# from . import optim
-# from . import data
-# from . import init as init
+from . import data
+from . import nn
+from . import optim
+from .backend_selection import *

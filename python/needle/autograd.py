@@ -1,20 +1,23 @@
 """Core data structures."""
 import needle
+from .backend_numpy import Device, cpu, all_devices
 from typing import List, Optional, NamedTuple, Tuple, Union
 from collections import namedtuple
 import numpy
+
+from needle import init
 
 # needle version
 LAZY_MODE = False
 TENSOR_COUNTER = 0
 
-# NOTE: we will numpy as the array_api
-# to backup our computations, this line will change in later homeworks
-from . import backend_ndarray as array_api
-from .backend_ndarray import all_devices, cuda, cpu, cpu_numpy, BackendDevice as Device
+# NOTE: we will import numpy as the array_api
+# as the backend for our computations, this line will change in later homeworks
 
-NDArray = array_api.NDArray
+import numpy as array_api
+NDArray = numpy.ndarray
 
+from .backend_selection import array_api, NDArray
 
 
 class Op:
@@ -61,7 +64,7 @@ class Op:
         raise NotImplementedError()
 
     def gradient_as_tuple(self, out_grad: "Value", node: "Value") -> Tuple["Value"]:
-        """ Convenience method to always return a tuple from gradient call"""
+        """Convenience method to always return a tuple from gradient call"""
         output = self.gradient(out_grad, node)
         if isinstance(output, tuple):
             return output
@@ -72,7 +75,7 @@ class Op:
 
 
 class TensorOp(Op):
-    """ Op class specialized to output tensors, will be alterate subclasses for other structures """
+    """Op class specialized to output tensors, will be alternate subclasses for other structures"""
 
     def __call__(self, *args):
         return Tensor.make_from_op(self, args)
@@ -105,7 +108,6 @@ class Value:
         self.cached_data = self.op.compute(
             *[x.realize_cached_data() for x in self.inputs]
         )
-        self.cached_data
         return self.cached_data
 
     def is_leaf(self):
@@ -187,7 +189,7 @@ class TensorTuple(Value):
 
     def detach(self):
         """Create a new tensor that shares the data but detaches from the graph."""
-        return TensorTuple.make_const(self.realize_cached_data())
+        return Tuple.make_const(self.realize_cached_data())
 
 
 class Tensor(Value):
@@ -288,7 +290,11 @@ class Tensor(Value):
         return data.device
 
     def backward(self, out_grad=None):
-        out_grad = out_grad if out_grad else needle.ops.full(self.shape, 1, dtype="float32", device=self.device)
+        out_grad = (
+            out_grad
+            if out_grad
+            else init.ones(*self.shape, dtype=self.dtype, device=self.device)
+        )
         compute_gradient_of_variables(self, out_grad)
 
     def __repr__(self):
@@ -316,9 +322,10 @@ class Tensor(Value):
             return needle.ops.MulScalar(other)(self)
 
     def __pow__(self, other):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        if isinstance(other, Tensor):
+            return needle.ops.EWisePow()(self, other)
+        else:
+            return needle.ops.PowerScalar(other)(self)
 
     def __sub__(self, other):
         if isinstance(other, Tensor):
@@ -408,4 +415,5 @@ def sum_node_list(node_list):
     """Custom sum function in order to avoid create redundant nodes in Python sum implementation."""
     from operator import add
     from functools import reduce
+
     return reduce(add, node_list)

@@ -5,6 +5,7 @@ import numpy as np
 from . import ndarray_backend_numpy
 from . import ndarray_backend_cpu
 
+
 # math.prod not in Python 3.7
 def prod(x):
     return reduce(operator.mul, x, 1)
@@ -12,6 +13,7 @@ def prod(x):
 
 class BackendDevice:
     """A backend device, wrapps the implementation module."""
+
     def __init__(self, name, mod):
         self.name = name
         self.mod = mod
@@ -28,11 +30,37 @@ class BackendDevice:
     def enabled(self):
         return self.mod is not None
 
+    def randn(self, *shape, dtype="float32"):
+        # note: numpy doesn't support types within standard random routines, and
+        # .astype("float32") does work if we're generating a singleton
+        return NDArray(np.random.randn(*shape).astype(dtype), device=self)
+
+    def rand(self, *shape, dtype="float32"):
+        # note: numpy doesn't support types within standard random routines, and
+        # .astype("float32") does work if we're generating a singleton
+        return NDArray(np.random.rand(*shape).astype(dtype), device=self)
+
+    def one_hot(self, n, i, dtype="float32"):
+        return NDArray(np.eye(n, dtype=dtype)[i], device=self)
+
+    def empty(self, shape, dtype="float32"):
+        dtype = "float32" if dtype is None else dtype
+        assert dtype == "float32"
+        return NDArray.make(shape, device=self)
+
+    def full(self, shape, fill_value, dtype="float32"):
+        dtype = "float32" if dtype is None else dtype
+        assert dtype == "float32"
+        arr = self.empty(shape, dtype)
+        arr.fill(fill_value)
+        return arr
+
 
 def cuda():
     """Return cuda device"""
     try:
         from . import ndarray_backend_cuda
+
         return BackendDevice("cuda", ndarray_backend_cuda)
     except ImportError:
         return BackendDevice("cuda", None)
@@ -57,7 +85,6 @@ def all_devices():
     return [cpu(), cuda(), cpu_numpy()]
 
 
-
 class NDArray:
     """A generic ND array class that may contain multipe different backends
     i.e., a Numpy backend, a native CPU backend, or a GPU backend.
@@ -71,7 +98,7 @@ class NDArray:
     """
 
     def __init__(self, other, device=None):
-        """ Create by copying another NDArray, or from numpy """
+        """Create by copying another NDArray, or from numpy"""
         if isinstance(other, NDArray):
             # create a copy of existing NDArray
             if device is None:
@@ -97,7 +124,7 @@ class NDArray:
 
     @staticmethod
     def compact_strides(shape):
-        """ Utility function to compute compact strides """
+        """Utility function to compute compact strides"""
         stride = 1
         res = []
         for i in range(1, len(shape) + 1):
@@ -107,9 +134,9 @@ class NDArray:
 
     @staticmethod
     def make(shape, strides=None, device=None, handle=None, offset=0):
-        """ Create a new NDArray with the given properties.  This will allocation the
+        """Create a new NDArray with the given properties.  This will allocation the
         memory if handle=None, otherwise it will use the handle of an existing
-        array. """
+        array."""
         array = NDArray.__new__(NDArray)
         array._shape = tuple(shape)
         array._strides = NDArray.compact_strides(shape) if strides is None else strides
@@ -141,7 +168,7 @@ class NDArray:
 
     @property
     def ndim(self):
-        """ Return number of dimensions. """
+        """Return number of dimensions."""
         return len(self._shape)
 
     @property
@@ -149,41 +176,39 @@ class NDArray:
         return prod(self._shape)
 
     def __repr__(self):
-        return (
-            "NDArray("
-            + self.numpy().__str__()
-            + f", device={self.device})"
-        )
+        return "NDArray(" + self.numpy().__str__() + f", device={self.device})"
 
     def __str__(self):
         return self.numpy().__str__()
 
     ### Basic array manipulation
     def fill(self, value):
-        """ Fill (in place) with a constant value. """
+        """Fill (in place) with a constant value."""
         self._device.fill(self._handle, value)
 
     def to(self, device):
-        """ Convert between devices, using to/from numpy calls as the unifying bridge. """
+        """Convert between devices, using to/from numpy calls as the unifying bridge."""
         if device == self.device:
             return self
         else:
             return NDArray(self.numpy(), device=device)
 
     def numpy(self):
-        """ convert to a numpy array """
+        """convert to a numpy array"""
         return self.device.to_numpy(
             self._handle, self.shape, self.strides, self._offset
         )
 
     def is_compact(self):
-        """ Return true if array is compact in memory and internal size equals product
-        of the shape dimensions """
-        return (self._strides == self.compact_strides(self._shape) and
-                prod(self.shape) == self._handle.size)
+        """Return true if array is compact in memory and internal size equals product
+        of the shape dimensions"""
+        return (
+            self._strides == self.compact_strides(self._shape)
+            and prod(self.shape) == self._handle.size
+        )
 
     def compact(self):
-        """ Convert a matrix to be compact """
+        """Convert a matrix to be compact"""
         if self.is_compact():
             return self
         else:
@@ -194,7 +219,7 @@ class NDArray:
             return out
 
     def as_strided(self, shape, strides):
-        """ Restride the matrix without copying memory. """
+        """Restride the matrix without copying memory."""
         assert len(shape) == len(strides)
         return NDArray.make(
             shape, strides=strides, device=self.device, handle=self._handle
@@ -277,7 +302,7 @@ class NDArray:
     ### Get and set elements
 
     def process_slice(self, sl, dim):
-        """ Convert a slice to an explicit start/stop/step """
+        """Convert a slice to an explicit start/stop/step"""
         start, stop, step = sl.start, sl.stop, sl.step
         if start == None:
             start = 0
@@ -507,11 +532,15 @@ class NDArray:
 
     ### Reductions, i.e., sum/max over all element or over given axis
     def reduce_view_out(self, axis):
-        """ Return a view to the array set up for reduction functions and output array. """
+        """Return a view to the array set up for reduction functions and output array."""
         if axis is None:
             view = self.reshape((1,) * (self.ndim - 1) + (prod(self.shape),))
             out = NDArray.make((1,) * self.ndim, device=self.device)
         else:
+            if isinstance(axis, (tuple, list)):
+                assert len(axis) == 1, "Only support reduction over a single axis"
+                axis = axis[0]
+
             view = self.permute(
                 tuple([a for a in range(self.ndim) if a != axis]) + (axis,)
             )
@@ -532,24 +561,46 @@ class NDArray:
         return out
 
 
-
 def array(a, dtype="float32", device=None):
-    """ Convenience methods to match numpy a bit more closely."""
+    """Convenience methods to match numpy a bit more closely."""
     dtype = "float32" if dtype is None else dtype
     assert dtype == "float32"
     return NDArray(a, device=device)
 
 
 def empty(shape, dtype="float32", device=None):
-    dtype = "float32" if dtype is None else dtype
-    assert dtype == "float32"
-    return NDArray.make(shape, device=device)
-
+    device = device if device is not None else default_device()
+    return device.empty(shape, dtype)
 
 
 def full(shape, fill_value, dtype="float32", device=None):
-    dtype = "float32" if dtype is None else dtype
-    assert dtype == "float32"
-    arr = empty(shape, dtype=dtype, device=device)
-    arr.fill(fill_value)
-    return arr
+    device = device if device is not None else default_device()
+    return device.full(shape, fill_value, dtype)
+
+
+def broadcast_to(array, new_shape):
+    return array.broadcast_to(new_shape)
+
+
+def reshape(array, new_shape):
+    return array.reshape(new_shape)
+
+
+def maximum(a, b):
+    return a.maximum(b)
+
+
+def log(a):
+    return a.log()
+
+
+def exp(a):
+    return a.exp()
+
+
+def tanh(a):
+    return a.tanh()
+
+
+def sum(a, axis=None):
+    return a.sum(axis=axis)

@@ -31,9 +31,22 @@ def _unpack_params(value: object) -> List[Tensor]:
 
 
 def _child_modules(value: object) -> List["Module"]:
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
+    if isinstance(value, Module):
+        modules = [value]
+        modules.extend(_child_modules(value.__dict__))
+        return modules
+    if isinstance(value, dict):
+        modules = []
+        for k, v in value.items():
+            modules += _child_modules(v)
+        return modules
+    elif isinstance(value, (list, tuple)):
+        modules = []
+        for v in value:
+            modules += _child_modules(v)
+        return modules
+    else:
+        return []
 
 
 class Module:
@@ -61,6 +74,11 @@ class Module:
         return self.forward(*args, **kwargs)
 
 
+class Identity(Module):
+    def forward(self, x):
+        return x
+
+
 class Linear(Module):
     def __init__(
         self, in_features, out_features, bias=True, device=None, dtype="float32"
@@ -68,20 +86,25 @@ class Linear(Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
+
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
         ### END YOUR SOLUTION
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, X: Tensor) -> Tensor:
+        ### BEGIN YOUR SOLUTION
+        raise NotImplementedError()
+        ### END YOUR SOLUTION
+
+
+class Flatten(Module):
+    def forward(self, X):
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
         ### END YOUR SOLUTION
 
 
 class ReLU(Module):
-    def __init__(self, device=None, dtype="float32"):
-        super().__init__()
-
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
@@ -89,7 +112,7 @@ class ReLU(Module):
 
 
 class Sequential(Module):
-    def __init__(self, *modules, device=None, dtype="float32"):
+    def __init__(self, *modules):
         super().__init__()
         self.modules = modules
 
@@ -100,16 +123,13 @@ class Sequential(Module):
 
 
 class SoftmaxLoss(Module):
-    def __init__(self, device=None, dtype="float32"):
-        super().__init__()
-
-    def forward(self, x: Tensor, y: Tensor):
+    def forward(self, logits: Tensor, y: Tensor):
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
         ### END YOUR SOLUTION
 
 
-class BatchNorm(Module):
+class BatchNorm1d(Module):
     def __init__(self, dim, eps=1e-5, momentum=0.1, device=None, dtype="float32"):
         super().__init__()
         self.dim = dim
@@ -125,10 +145,10 @@ class BatchNorm(Module):
         ### END YOUR SOLUTION
 
 
-class LayerNorm(Module):
-    def __init__(self, dims, eps=1e-5, device=None, dtype="float32"):
+class LayerNorm1d(Module):
+    def __init__(self, dim, eps=1e-5, device=None, dtype="float32"):
         super().__init__()
-        self.dims = dims if isinstance(dims, tuple) else (dims,)
+        self.dim = dim
         self.eps = eps
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
@@ -141,9 +161,9 @@ class LayerNorm(Module):
 
 
 class Dropout(Module):
-    def __init__(self, drop_prob, device=None, dtype="float32"):
+    def __init__(self, p=0.5):
         super().__init__()
-        self.p = drop_prob
+        self.p = p
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
@@ -152,7 +172,7 @@ class Dropout(Module):
 
 
 class Residual(Module):
-    def __init__(self, fn: Module, device=None, dtype="float32"):
+    def __init__(self, fn: Module):
         super().__init__()
         self.fn = fn
 
@@ -160,11 +180,3 @@ class Residual(Module):
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
         ### END YOUR SOLUTION
-
-
-class Identity(Module):
-    def __init__(self, *args, device=None, dtype="float32", **kwargs):
-        super().__init__()
-
-    def forward(self, x):
-        return x

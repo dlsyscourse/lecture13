@@ -20,10 +20,18 @@ class SGD(Optimizer):
         super().__init__(params)
         self.lr = lr
         self.momentum = momentum
-        self.delta = {}
+        self.u = {}
         self.weight_decay = weight_decay
 
     def step(self):
+        ### BEGIN YOUR SOLUTION
+        raise NotImplementedError()
+        ### END YOUR SOLUTION
+
+    def clip_grad_norm(self, max_norm=0.25):
+        """
+        Clips gradient norm of parameters.
+        """
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
         ### END YOUR SOLUTION
@@ -37,7 +45,6 @@ class Adam(Optimizer):
         beta1=0.9,
         beta2=0.999,
         eps=1e-8,
-        bias_correction=True,
         weight_decay=0.0,
     ):
         super().__init__(params)
@@ -46,7 +53,6 @@ class Adam(Optimizer):
         self.beta2 = beta2
         self.eps = eps
         self.weight_decay = weight_decay
-        self.bias_correction = bias_correction
         self.t = 0
 
         self.m = {}
